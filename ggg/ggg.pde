@@ -1,46 +1,34 @@
+float power = 3;
+float d = 8;
 
 void setup(){
-    size(440, 220, OPENGL);
-    smooth();
+    size(600, 200);
+
+    noStroke();
+
+    frameRate(1);
 }
 
 void draw(){
 
-    background(0);
+    background(204);
 
-    translate(width/2, height/2, 0);
+    noiseSeed(millis());
+    for(int y = 0; y < height; y++){
+        for(int x = 0; x < width; x++){
+            float total = 0.0;
+            for(float i = d; i >= 1; i= i/2.0);{
+                total += noise(x/d, y/d) * d;
+            }
 
-    rotateX(mouseX / 200.0);
-    rotateY(mouseY / 100.0);
-
-    int dim = 18;
-
-    for(int i = -height/2; i < height/2; i += dim*1.2){
-        for(int j = -height/2; j < height/2; j+=dim*1.2){
-            beginShape();
-
-            vertex(i, j, 0);
-            vertex(i+dim, j, 0);
-            vertex(i+dim, j+dim, -dim);
-            vertex(i, j+dim, -dim);
-            
-            endShape();
+            float turbulence = 128.0 * total / d;
+            float base = (x * 0.2) + (y * 0.12);
+            float offset = base + (power * turbulence / 256.0);
+            float gray = abs(sin(offset)) * 256.0;
+            stroke(gray);
+            point(x, y);
         }
     }
 }
-    
 
-
-void textOut(String out, float x, float y){
-    textOut(out, x, y, 24);
-}
-
-void textOut(String out, float x, float y, float size){
-    float tw = textWidth(out);
-    textSize(size);
-    fill(0);
-    rect(x, y - size, tw, size *1.5);
-    fill(204);
-    text(out, x, y);
-}
 
