@@ -1,48 +1,31 @@
-int numLines = 500;
-MovingLine[] lines = new MovingLine[numLines];
-int cur = 0;
+float x = 100;
+float y = 100;
+float xspeed = 1.0;
+float yspeed = 3.3;
 
 void setup(){
-    size(400, 400);
-    smooth();
-    frameRate(24);
-    for(int i = 0; i < numLines; i++){
-        lines[i] = new MovingLine();
-    }
+    size(640, 360);
 }
 
 
 void draw(){
-    background(204);
-    for(int i = 0; i < cur; i++){
-        lines[i].display(); 
+
+    background(255);
+
+    x += xspeed;
+    y += yspeed;
+
+    if((x > width) || x < 0){
+        xspeed = -xspeed;
     }
+
+    if((y > height) || y < 0){
+        yspeed = -yspeed;
+    }
+
+    stroke(0);
+    fill(175);
+
+    ellipse(x, y, 16, 16);
 }
 
-void mouseDragged(){
-    lines[cur].setPoint(mouseX, mouseY,
-                        pmouseX, pmouseY);
-    if(cur < (numLines - 1)){
-        cur ++;
-    }
-}
-
-class MovingLine{
-    float _x, _y, _px, _py;
-
-    void setPoint(int x, int y, int px, int py){
-        _x = x;
-        _y = y;
-        _px= px;
-        _py= py;
-    }
-
-    void display(){
-        _x += random(-0.5, 0.5);
-        _y += random(-0.5, 0.5);
-        _px+= random(-0.5, 0.5);
-        _py+= random(-0.5, 0.5);
-
-        line(_x, _y, _px, _py);
-    }
-}
