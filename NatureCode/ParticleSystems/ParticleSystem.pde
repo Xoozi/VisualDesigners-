@@ -1,30 +1,35 @@
 import java.util.Iterator;
 
-final int total = 10;
-ArrayList<Particle> particles;
+class ParticleSystem{
+    ArrayList<Particle> particles;
+    PVector origin;
 
-void setup(){
-    size(640, 480);
-    particles = new ArrayList<Particle>();
-}
+    ParticleSystem(PVector location){
+        particles = new ArrayList<Particle>();
+        origin = location.get();
+    }
 
+    void addParticle(){
+        particles.add(new Particle(origin));
+    }
 
-void draw(){
-    background(255);
-    
-    particles.add(new Particle(new PVector(width/2, 50)));
-    
-    Iterator<Particle> it = particles.iterator();
-    while(it.hasNext()){
-        Particle p = it.next();
-        p.run();
-        if(p.isDead()){
-            it.remove();
+    void run(){
+        addParticle();
+
+        Iterator<Particle> it = particles.iterator();
+        while(it.hasNext()){
+            Particle p = it.next();
+            p.run();
+            if(p.isDead()){
+                it.remove();
+            }
         }
     }
 }
 
+
 class Particle{
+
     PVector location;
     PVector velocity;
     PVector acceleration;

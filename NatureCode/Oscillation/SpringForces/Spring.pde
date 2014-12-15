@@ -37,12 +37,19 @@ class Spring{
             b.location = PVector.add(ancher, dir);
 
             //this means a shock stop the bob
-            b.velocity.mult(0);
+            //b.velocity.mult(0);
+
+            //I think should be sub the normal velocity component
+            //to remove the tangential component
+            //not mult(0);
+            b.velocity = _removeNormal(b);
         }else if(d > maxLength){
             dir.normalize();
             dir.mult(maxLength);
             b.location = PVector.add(ancher, dir);
-            b.velocity.mult(0);
+
+            //b.velocity.mult(0);
+            b.velocity = _removeNormal(b);
         }
     }
 
@@ -55,6 +62,17 @@ class Spring{
     void displayLine(Bob b){
         stroke(255);
         line(ancher.x, ancher.y, b.location.x, b.location.y);
+    }
+
+    PVector _removeNormal(Bob b){
+        
+        PVector normalV = PVector.sub(b.location, ancher);
+        normalV.normalize();
+        float aa = atan2(b.location.y, b.location.x);
+        float normalVMag = b.velocity.mag() * sin(aa);
+        normalV.mult(normalVMag);
+
+        return PVector.sub(b.velocity, normalV);
     }
 
 }
