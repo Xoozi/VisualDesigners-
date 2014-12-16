@@ -4,25 +4,17 @@ class ParticleSystem{
     ArrayList<Particle> particles;
     PVector origin;
     PVector force;
-    Repeller repeller;
+    PImage img;
 
-    ParticleSystem(PVector location){
+    ParticleSystem(PVector location, PImage img){
         particles = new ArrayList<Particle>();
         origin = location.get();
         force = new PVector(0.0, 0.0);
-
-        repeller = new Repeller(location.x, location.y + 100, 30);
+        this.img = img;
     }
 
     void addParticle(){
-        float flag = random(1.0);
-        Particle p;
-        if(flag < 0.5){
-            p = new Particle(origin);
-        }else{
-            p = new Confetti(origin);
-        }
-        particles.add(p);
+        particles.add(new Particle(origin));
     }
 
     //I think my way is better than the book
@@ -32,14 +24,12 @@ class ParticleSystem{
 
     void run(){
 
-        repeller.display();
 
         Iterator<Particle> it = particles.iterator();
         while(it.hasNext()){
             Particle p = it.next();
             p.applyForce(force);
-            p.applyForce(repeller.repel(p));
-            p.run();
+            p.run(img);
             if(p.isDead()){
                 it.remove();
             }
