@@ -1,12 +1,10 @@
-class Box{
-    Body body;
-    float radius;
-    boolean deaded;
-
-    Box(float x, float y, float radius){
-
-        deaded = false;
-        this.radius = radius;
+class Pin extends Box{
+    float w;
+    float h;
+    Pin(float x, float y, float radius){
+        super(x, y, radius);
+        w = radius;
+        h = 3*radius;
         BodyDef bd = new BodyDef();
         Vec2 center = box2d.coordPixelsToWorld(x, y);
         bd.type = BodyType.DYNAMIC;
@@ -17,22 +15,30 @@ class Box{
         body.setLinearVelocity(new Vec2(random(2.0), random(2.0)));
         body.setAngularVelocity(random(2.0));
 
-        PolygonShape ps = new PolygonShape();
-        float box2Dw = box2d.scalarPixelsToWorld(radius/2);
-        float box2Dh = box2d.scalarPixelsToWorld(radius/2);
-        ps.setAsBox(box2Dw, box2Dh);
+        CircleShape cs = new CircleShape();
+        Vec2 offset  = new Vec2(0, -h/2);
+        offset = box2d.vectorPixelsToWorld(offset);
+        cs.m_radius = box2d.scalarPixelsToWorld(radius);
+        cs.m_p.set(offset.x, offset.y);
+
 
         FixtureDef fd = new FixtureDef();
-        fd.shape = ps;
+        fd.shape = cs;
         fd.friction = 0.3;
         fd.restitution = 0.5;
         fd.density = 1.0;
-
         body.createFixture(fd);
+
+        PolygonShape ps = new PolygonShape();
+        float box2dW = box2d.scalarPixelsToWorld(w/2);
+        float box2dH = box2d.scalarPixelsToWorld(h/2);
+        ps.setAsBox(box2dW, box2dH);
+        
+        body.createFixture(ps, 1.0);
     }
 
     boolean display(){
-        
+
         if(deaded){
             return false;
         }
@@ -53,17 +59,17 @@ class Box{
 
         fill(175);
         stroke(0);
+        
         rectMode(CENTER);
-        rect(0, 0, radius, radius);
+        rect(0, 0, w, h);
+
+        ellipseMode(CENTER);
+        fill(100);
+        ellipse(0, -h/2, radius*2, radius*2);
+
         popMatrix();
 
         return true;
-    }
-
-
-    void killBody(){
-        box2d.destroyBody(body);
-        deaded = true;
     }
 
 }
