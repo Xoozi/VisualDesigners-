@@ -1,13 +1,21 @@
 class Ball extends Box{
 
     Ball(float x, float y, float radius){
-        super(x, y, radius);
+        this(x, y, radius, false);
+    }
+
+    Ball(float x, float y, float radius, boolean fixed){
+        super(x, y, radius,fixed);
         this.radius = radius;
         BodyDef bd = new BodyDef();
         Vec2 center = box2d.coordPixelsToWorld(x, y);
-        bd.type = BodyType.DYNAMIC;
+        if(fixed){
+            bd.type = BodyType.STATIC;
+        }else{
+            bd.type = BodyType.DYNAMIC;
+            bd.bullet = true;
+        }
         bd.position.set(center);
-        bd.bullet = true;
 
         body = box2d.createBody(bd);
         body.setLinearVelocity(new Vec2(random(2.0), random(2.0)));
@@ -18,11 +26,12 @@ class Ball extends Box{
 
         FixtureDef fd = new FixtureDef();
         fd.shape = cs;
-        fd.friction = 0.3;
+        fd.friction = 1.0;
         fd.restitution = 0.5;
         fd.density = 1.0;
 
         body.createFixture(fd);
+        body.setUserData(this);
     }
 
     boolean display(){
@@ -45,7 +54,11 @@ class Ball extends Box{
         translate(pos.x, pos.y);
         rotate(-a);
 
-        fill(175);
+        if(change){
+            fill(#FF0000);
+        }else{
+            fill(175);
+        }
         stroke(0);
         
         ellipseMode(CENTER);

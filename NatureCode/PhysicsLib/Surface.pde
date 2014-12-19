@@ -26,7 +26,7 @@ class Surface{
         FixtureDef fd = new FixtureDef();
         fd.shape = chain;
         fd.density = 1;
-        fd.friction= 0.3;
+        fd.friction= 1.0;
         fd.restitution=0.5;
         body.createFixture(fd);
     }
