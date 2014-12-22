@@ -104,7 +104,7 @@ class Vehicle{
         applyForce(steer);
     }
 
-    void wander(){
+    void wander(boolean trace){
         float wanderR = 25;
         float wanderD = 80;
         float change = 0.6;
@@ -123,7 +123,10 @@ class Vehicle{
         PVector circleOffset = new PVector(wanderR*cos(wandertheta+h), wanderR*sin(wandertheta+h));
         PVector target = PVector.add(circleloc, circleOffset);
         seek(target);
-        drawWanderStuff(location, circleloc, target, wanderR);
+
+        if(trace){
+            drawWanderStuff(location, circleloc, target, wanderR);
+        }
     }
 
     void boundaries(float d){
@@ -165,6 +168,183 @@ class Vehicle{
         applyForce(steer);
     }
 
+    boolean followP(Path path, float dist, boolean trace){
+        
+        PVector predict = velocity.get();
+        predict.normalize();
+        predict.mult(dist);
+        PVector predictLoc = PVector.add(location, predict);
+
+        PVector normal = null;
+        PVector start = null;
+        PVector end = null;
+        float worldRecord = 10000000;
+        int count = path.vertexList.size() - 1;
+        for(int i = 0; i < count; i++){
+            PVector a = path.vertexList.get(i);
+            PVector b = path.vertexList.get(i+1);
+            PVector normalPoint = getNormalPoint(predictLoc, a, b);
+
+            if(normalPoint.x < a.x || normalPoint.x > b.x){
+                normalPoint = b.get();
+            }
+
+            float distance = PVector.dist(predictLoc, normalPoint);
+
+            if(distance < worldRecord){
+                worldRecord = distance;
+
+                normal = normalPoint;
+
+                start = a;
+                end = b;
+            }
+        }
+
+        PVector dir = PVector.sub(end, start);
+        dir.normalize();
+        dir.mult(10);
+        PVector target = PVector.add(normal, dir);
+
+        if(worldRecord > path.radius){
+            seek(target);
+            if(trace){
+                drawFollowPath(predictLoc, normal, target, true);
+            }
+
+            return true;
+        }else{
+            if(trace){
+                drawFollowPath(predictLoc, normal, target, false);
+            }
+
+            return false;
+        }
+    }
+    
+    /**
+        My thinking is right, but my algorithm has a problem:
+
+        I calc the distance and then compare them, to get the
+
+        start-end pair with lest distance-->then I compare the 
+
+        normal.x with start.x and end.x to make sure is normal point
+
+        out of the line.  If it's out of the line, make the end be the
+
+        normal point.This is the key point, make the end be the normal, then
+
+        the distance is not the old one, may be a large distance.
+
+        So the right way is 1 make sure normal out 2 if out make the end be
+
+        the normal point 3 calc distance 4 compare
+    */
+    boolean follow(Path path, float dist, boolean trace){
+        PVector predict = velocity.get();
+        predict.normalize();
+        predict.mult(dist);
+        PVector predictLoc = PVector.add(location, predict);
+
+        Line line = findNearestLine(path, predictLoc);
+
+        PVector a = line.start;
+        PVector b = line.end;
+        PVector normalPoint = line.normalPoint;
+
+        PVector dir = PVector.sub(b, a);
+        dir.normalize();
+        dir.mult(10);
+        PVector target = PVector.add(normalPoint, dir);
+
+        float distance = PVector.dist(normalPoint, predictLoc);
+        if(distance > path.radius){
+            seek(target);
+            if(trace){
+                drawFollowPath(predictLoc, normalPoint, target, true);
+            }
+
+            return true;
+        }else{
+            if(trace){
+                drawFollowPath(predictLoc, normalPoint, target, false);
+            }
+
+            return false;
+        }
+
+    }
+
+    Line findNearestLine(Path path, PVector predirLoc){
+        Line line = new Line();
+        float miniDist = 1000000;
+        float dist;
+        PVector prev =  null;
+        PVector normalPoint;
+        boolean out;
+        boolean outMini = true;
+
+        for(PVector p:path.vertexList){
+            if(null != prev){
+                normalPoint = getNormalPoint(predirLoc, prev, p);
+
+                dist = PVector.dist(normalPoint, predirLoc);
+
+                if(normalPoint.x < prev.x ||
+                    normalPoint.x > p.x){
+
+                    out = true;
+
+                    normalPoint = p.get();
+                }else{
+                    out = false;
+                }
+
+                if(dist < miniDist){
+                    if(outMini == out || out == false){
+                        miniDist = dist;
+                        line.start = prev;
+                        line.end = p;
+                        line.normalPoint = normalPoint;
+                        outMini = out;
+                    }
+                }
+            }
+            prev = p;
+        }
+
+        line.start = line.start.get();
+        line.end = line.end.get();
+        return line;
+    }
+    
+
+    void drawFollowPath(PVector predictLoc, PVector normalPoint, PVector target, boolean seek){
+        stroke(0);
+        fill(0);
+        line(location.x, location.y, predictLoc.x, predictLoc.y);
+        line(predictLoc.x, predictLoc.y, normalPoint.x, normalPoint.y);
+        ellipse(predictLoc.x, predictLoc.y, 5, 5);
+        ellipse(normalPoint.x, normalPoint.y, 5, 5);
+
+        if(seek){  
+            fill(_color);
+            ellipse(target.x, target.y, 5, 5);
+        }
+    }
+
+
+    PVector getNormalPoint(PVector p, PVector a, PVector b){
+        PVector ap = PVector.sub(p, a);
+        PVector ab = PVector.sub(b, a);
+
+        ab.normalize();
+        ab.mult(ap.dot(ab));
+        
+        return PVector.add(a, ab);
+    }
+
     void drawWanderStuff(PVector location, PVector circle, PVector target, float rad){
         stroke(0);
         noFill();
@@ -176,6 +356,13 @@ class Vehicle{
         line(location.x, location.y, circle.x, circle.y);
         stroke(#0000FF);
         line(circle.x, circle.y, target.x, target.y);
+    }
+
+
+    class Line{
+        PVector start;
+        PVector end;
+        PVector normalPoint;
     }
 
 }
