@@ -65,7 +65,7 @@ class Vehicle{
         acceleration.add(f);
     }
 
-    void seek(PVector target){
+    PVector seek(PVector target){
         
         PVector desired = PVector.sub(target, location);
         desired.normalize();
@@ -73,8 +73,10 @@ class Vehicle{
 
         PVector steer = PVector.sub(desired, velocity);
         steer.limit(maxforce);
-        applyForce(steer);
+
+        return steer;
     }
+
 
     void flee(PVector target){
         
@@ -87,7 +89,79 @@ class Vehicle{
         applyForce(steer);
     }
 
-    void arrive(PVector target){
+
+    void flock(ArrayList<Vehicle> vehicles, float neighbord){
+    
+        PVector sep = separate(vehicles, 30);
+        PVector ali = align(vehicles, neighbord);
+        PVector coh = cohesion(vehicles, neighbord);
+
+        sep.mult(1.5);
+        ali.mult(1.0);
+        coh.mult(1.0);
+
+        applyForce(sep);
+        applyForce(ali);
+        applyForce(coh);
+    }
+
+    PVector align(ArrayList<Vehicle> vehicles, float neighbord){
+        PVector sum = new PVector(0, 0);
+        
+        int count = 0;
+        float dist;
+        for(Vehicle v: vehicles){
+            dist = PVector.dist(location, v.location);
+
+            if(dist > 0 && dist < neighbord){
+                sum.add(v.velocity);
+                count ++; 
+            }
+        }
+        
+        if(count > 0){
+
+            sum.div(count);
+
+            sum.mult(maxspeed);
+
+            PVector steer = PVector.sub(sum, velocity);
+
+            steer.limit(maxforce);
+
+            return steer;
+        }else{
+            return new PVector(0, 0);
+        }
+    }
+
+
+    PVector cohesion(ArrayList<Vehicle> vehicles, float neighbord){
+
+        PVector sum = new PVector(0, 0);
+        
+        int count = 0;
+        float dist;
+        for(Vehicle v: vehicles){
+            dist = PVector.dist(location, v.location);
+
+            if(dist > 0 && dist < neighbord){
+                sum.add(v.location);
+                count ++; 
+            }
+        }
+        
+        if(count > 0){
+
+            sum.div(count);
+
+            return seek(sum);
+        }else{
+            return new PVector(0, 0);
+        }
+    }
+
+    PVector arrive(PVector target){
         
         PVector desired = PVector.sub(target, location);
         float d = desired.mag();
@@ -101,7 +175,7 @@ class Vehicle{
 
         PVector steer = PVector.sub(desired, velocity);
         steer.limit(maxforce);
-        applyForce(steer);
+        return steer;
     }
 
     void wander(boolean trace){
@@ -127,6 +201,37 @@ class Vehicle{
         if(trace){
             drawWanderStuff(location, circleloc, target, wanderR);
         }
+    }
+
+    PVector separate(ArrayList<Vehicle> vehicles, float separation){
+        
+        float dist;
+        PVector diff;
+        PVector sum = new PVector();
+        int count = 0;
+        for(Vehicle v: vehicles){
+            dist = PVector.dist(location, v.location);
+
+            if(dist > 0 && dist < separation){
+                diff = PVector.sub(location, v.location);
+                diff.normalize();
+
+                sum.add(diff);
+                count ++;
+            }
+        }
+        
+        if(count > 0){
+            sum.div(count);
+            sum.setMag(maxspeed);
+
+            PVector steer = PVector.sub(sum, velocity);
+            steer.limit(maxforce);
+            
+            return steer;
+        }
+
+        return new PVector(0, 0);
     }
 
     void boundaries(float d){
@@ -158,6 +263,18 @@ class Vehicle{
         if(location.y > height+r)location.y = -r;
     }
 
+    void applyBehaviors(ArrayList<Vehicle> vehicles, Path path, boolean trace){
+        
+        PVector f = follow(path, 30.0, trace);
+        PVector s = separate(vehicles, 30);
+
+        f.mult(3);
+        s.mult(1);
+
+        applyForce(f);
+        applyForce(s);
+    }
+
     void follow(FlowField field){
         PVector desired = field.lookup(location);
 
@@ -184,24 +301,9 @@ class Vehicle{
             PVector a = path.vertexList.get(i);
             PVector b = path.vertexList.get(i+1);
             PVector normalPoint = getNormalPoint(predictLoc, a, b);
-            
-            /*this check too simple
+
             if(normalPoint.x < a.x || normalPoint.x > b.x){
                 normalPoint = b.get();
-            }*/
-
-            /*
-             If path like a frame, the normal point out check
-              need be like this
-            */
-            if(normalPoint.x < min(a.x, b.x) ||
-                normalPoint.x > max(a.x, b.x) ||
-                normalPoint.y < min(a.y, b.y) ||
-                normalPoint.y > max(a.y, b.y)){
-                normalPoint = b.get();
-
-                a = path.vertexList.get((i+1)%count);
-                b = path.vertexList.get((i+2)%count);
             }
 
             float distance = PVector.dist(predictLoc, normalPoint);
@@ -237,58 +339,62 @@ class Vehicle{
         }
     }
     
-    /**
-        My thinking is right, but my algorithm has a problem:
-
-        I calc the distance and then compare them, to get the
-
-        start-end pair with lest distance-->then I compare the 
-
-        normal.x with start.x and end.x to make sure is normal point
-
-        out of the line.  If it's out of the line, make the end be the
-
-        normal point.This is the key point, make the end be the normal, then
-
-        the distance is not the old one, may be a large distance.
-
-        So the right way is 1 make sure normal out 2 if out make the end be
-
-        the normal point 3 calc distance 4 compare
-    */
-    boolean follow(Path path, float dist, boolean trace){
+    PVector follow(Path path, float dist, boolean trace){
         PVector predict = velocity.get();
         predict.normalize();
         predict.mult(dist);
         PVector predictLoc = PVector.add(location, predict);
 
-        Line line = findNearestLine(path, predictLoc);
+        PVector normal = null;
+        PVector start = null;
+        PVector end = null;
+        float worldRecord = 10000000;
+        int count = path.vertexList.size() - 1;
+        for(int i = 0; i < count; i++){
+            PVector a = path.vertexList.get(i);
+            PVector b = path.vertexList.get(i+1);
+            PVector normalPoint = getNormalPoint(predictLoc, a, b);
 
-        PVector a = line.start;
-        PVector b = line.end;
-        PVector normalPoint = line.normalPoint;
+            if(normalPoint.x < min(a.x, b.x) ||
+                normalPoint.x > max(a.x, b.x) ||
+                normalPoint.y < min(a.y, b.y) ||
+                normalPoint.y > max(a.y, b.y)){
+                normalPoint = b.get();
 
-        PVector dir = PVector.sub(b, a);
-        dir.normalize();
-        dir.mult(10);
-        PVector target = PVector.add(normalPoint, dir);
-
-        float distance = PVector.dist(normalPoint, predictLoc);
-        if(distance > path.radius){
-            seek(target);
-            if(trace){
-                drawFollowPath(predictLoc, normalPoint, target, true);
+                a = path.vertexList.get((i+1)%count);
+                b = path.vertexList.get((i+2)%count);
             }
 
-            return true;
-        }else{
-            if(trace){
-                drawFollowPath(predictLoc, normalPoint, target, false);
-            }
+            float distance = PVector.dist(predictLoc, normalPoint);
 
-            return false;
+            if(distance < worldRecord){
+                worldRecord = distance;
+
+                normal = normalPoint;
+
+                start = a;
+                end = b;
+            }
         }
 
+        PVector dir = PVector.sub(end, start);
+        dir.normalize();
+        dir.mult(10);
+        PVector target = PVector.add(normal, dir);
+
+        if(worldRecord > path.radius){
+            if(trace){
+                drawFollowPath(predictLoc, normal, target, true);
+            }
+
+            return seek(target);
+        }else{
+            if(trace){
+                drawFollowPath(predictLoc, normal, target, false);
+            }
+
+            return new PVector(0, 0);
+        }
     }
 
     Line findNearestLine(Path path, PVector predirLoc){
